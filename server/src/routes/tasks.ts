@@ -126,12 +126,12 @@ router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunc
     const userId = req.userId!;
     
     // Verify tags exist
-    if (data.tagIds.length > 0) {
+    if (data.tagIds!.length > 0) {
       const existingTags = await prisma.tag.findMany({
         where: { id: { in: data.tagIds } }
       });
       
-      if (existingTags.length !== data.tagIds.length) {
+      if (existingTags.length !== data.tagIds!.length) {
         throw createError('One or more tags not found', 400);
       }
     }
@@ -147,7 +147,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunc
         color: data.color,
         userId,
         tags: {
-          create: data.tagIds.map(tagId => ({
+          create: data.tagIds!.map(tagId => ({
             tag: { connect: { id: tagId } }
           }))
         }
