@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 // ПРАВИЛНО:
-const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, data);;
+const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, FormData);;
 
 // Create axios instance
 export const api: AxiosInstance = axios.create({
