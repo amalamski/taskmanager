@@ -1,7 +1,9 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-// ПРАВИЛНО:
-const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, FormData);
-// Create axios instance
+
+// Използваме адреса от Vercel Environment Variables и добавяме задължителния префикс /api
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'https://taskmanager-api-acml.onrender.com'}/api`;
+
+// Създаване на axios инстанция
 export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -9,7 +11,7 @@ export const api: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Интерцептор за добавяне на Auth токен към всяка заявка
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
@@ -21,12 +23,12 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
+// Интерцептор за грешки (например при изтекъл токен)
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiErrorResponse>) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
+      // Токенът е невалиден или изтекъл - изхвърляме потребителя
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/#/login';
@@ -35,7 +37,8 @@ api.interceptors.response.use(
   }
 );
 
-// Types
+// --- Типове (Interfaces) ---
+
 export interface ApiErrorResponse {
   error: string;
   field?: string;
@@ -97,14 +100,17 @@ export interface RegisterInput {
   name?: string;
 }
 
-// Auth API
+// --- Auth API ---
+
 export const authApi = {
   login: async (data: LoginInput) => {
+    // Отива на: .../api/auth/login
     const response = await api.post('/auth/login', data);
     return response.data;
   },
   
   register: async (data: RegisterInput) => {
+    // Отива на: .../api/auth/register
     const response = await api.post('/auth/register', data);
     return response.data;
   },
@@ -115,7 +121,8 @@ export const authApi = {
   },
 };
 
-// Tasks API
+// --- Tasks API ---
+
 export const tasksApi = {
   getAll: async (filters?: { status?: string; priority?: string; search?: string }) => {
     const response = await api.get('/tasks', { params: filters });
@@ -153,10 +160,10 @@ export const tasksApi = {
   },
 };
 
-// Tags API
+// --- Tags API ---
+
 export const tagsApi = {
   getAll: async () => {
-    // Tags are embedded in tasks, so we return a predefined list
     return [
       { id: '1', name: 'Frontend', color: '#3B82F6' },
       { id: '2', name: 'Backend', color: '#10B981' },
