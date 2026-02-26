@@ -130,14 +130,69 @@ router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunc
       const existingTags = await prisma.tag.findMany({
         where: { id: { in: data.tagIds } }
       });
-      
       if (existingTags.length !== data.tagIds!.length) {
+        throw createError('One or more tags not found', 400);
+      }
+    }
+    // Create a new task
+router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = validate(taskSchema, req.body);
+    const userId = req.userId!;
+    
+    // Проверка за тагове
+    if (data.tagIds && data.tagIds.length > 0) {
+      const existingTags = await prisma.tag.findMany({
+        where: { id: { in: data.tagIds } }
+      });
+      
+      if (existingTags.length !== data.tagIds.length) {
         throw createError('One or more tags not found', 400);
       }
     }
     
     const task = await prisma.task.create({
       data: {
+        title: data.title,
+        description: data.description,
+        status: data.status,
+        priority: data.priority,
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        color: data.color,
+        userId,
+        tags: {
+          create: (data.tagIds ?? []).map((tagId: string) => ({
+            tag: { connect: { id: tagId } }
+          }))
+        }
+      },
+      include: {
+        tags: {
+          include: {
+            tag: true
+          }
+        }
+      }
+    });
+
+    if (data.status === 'DONE') {
+      await prisma.task.update({
+        where: { id: task.id },
+        data: { completedAt: new Date() }
+      });
+    }
+
+    res.status(201).json({
+      message: 'Task created successfully',
+      task: task // или форматирания обект
+    });
+  } catch (error) {
+    next(error);
+  }
+}); // <--- Тази скоба затваря POST заявката
+    const task = await prisma.task.create({}
+      data: {}
         title: data.title,
         description: data.description,
         status: data.status,
