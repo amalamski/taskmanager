@@ -1,3 +1,10 @@
+app.use(cors({
+  origin: process.env.FRONTEND_URL, // Взима адреса от настройките в Render
+  credentials: true,                // Позволява изпращане на Cookies/Tokens
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 export type TaskStatus = 'todo' | 'in-progress' | 'review' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
 
