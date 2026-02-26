@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// ПРАВИЛНО:
+const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, data);;
 
 // Create axios instance
 export const api: AxiosInstance = axios.create({
