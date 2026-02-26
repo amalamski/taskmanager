@@ -47,7 +47,6 @@ router.get('/', async (req: AuthenticatedRequest, res: Response, next: NextFunct
       ]
     });
     
-    // Transform to match frontend format
     const formattedTasks = tasks.map(task => ({
       id: task.id,
       title: task.title,
@@ -125,22 +124,6 @@ router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunc
     const data = validate(taskSchema, req.body);
     const userId = req.userId!;
     
-    // Verify tags exist
-    ?if (data.tagIds!.length > 0) {
-      const existingTags = await prisma.tag.findMany({
-        where: { id: { in: data.tagIds } }
-      });
-      if (existingTags.length !== data.tagIds!.length) {
-        throw createError('One or more tags not found', 400);
-      }
-    }
-    // Create a new task
-router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const data = validate(taskSchema, req.body);
-    const userId = req.userId!;
-    
-    // Проверка за тагове
     if (data.tagIds && data.tagIds.length > 0) {
       const existingTags = await prisma.tag.findMany({
         where: { id: { in: data.tagIds } }
@@ -175,48 +158,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunc
         }
       }
     });
-
-    if (data.status === 'DONE') {
-      await prisma.task.update({
-        where: { id: task.id },
-        data: { completedAt: new Date() }
-      });
-    }
-
-    res.status(201).json({
-      message: 'Task created successfully',
-      task: task // или форматирания обект
-    });
-  } catch (error) {
-    next(error);
-  }
-}); // <--- Тази скоба затваря POST заявката
-    const task = await prisma.task.create({}
-      data: {}
-        title: data.title,
-        description: data.description,
-        status: data.status,
-        priority: data.priority,
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
-        color: data.color,
-        userId,
-        tags: {
-          create: data.tagIds! ?? []).map(tagId => ({
-            tag: { connect: { id: tagId } }
-          }))
-        }
-      },
-      include: {
-        tags: {
-          include: {
-            tag: true
-          }
-        }
-      }
-    });
     
-    // Set completedAt if status is DONE
     if (data.status === 'DONE') {
       await prisma.task.update({
         where: { id: task.id },
@@ -256,7 +198,6 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response, next: Next
     const data = validate(taskUpdateSchema, req.body);
     const userId = req.userId!;
     
-    // Check task exists and belongs to user
     const existingTask = await prisma.task.findFirst({
       where: { id, userId }
     });
@@ -265,9 +206,7 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response, next: Next
       throw createError('Task not found', 404);
     }
     
-    // Build update data
     const updateData: any = {};
-    
     if (data.title !== undefined) updateData.title = data.title;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.status !== undefined) updateData.status = data.status;
@@ -276,27 +215,17 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response, next: Next
     if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
     if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
     
-    // Handle completedAt
     if (data.status === 'DONE' && existingTask.status !== 'DONE') {
       updateData.completedAt = new Date();
     } else if (data.status !== 'DONE' && existingTask.status === 'DONE') {
       updateData.completedAt = null;
     }
     
-    // Handle tags update
     if (data.tagIds !== undefined) {
-      // Delete existing tags
-      await prisma.taskTag.deleteMany({
-        where: { taskId: id }
-      });
-      
-      // Create new tag associations
+      await prisma.taskTag.deleteMany({ where: { taskId: id } });
       if (data.tagIds.length > 0) {
         await prisma.taskTag.createMany({
-          data: data.tagIds.map(tagId => ({
-            taskId: id,
-            tagId
-          }))
+          data: data.tagIds.map(tagId => ({ taskId: id, tagId }))
         });
       }
     }
@@ -305,11 +234,7 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response, next: Next
       where: { id },
       data: updateData,
       include: {
-        tags: {
-          include: {
-            tag: true
-          }
-        }
+        tags: { include: { tag: true } }
       }
     });
     
@@ -345,7 +270,6 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response, next: Nex
     const { id } = req.params;
     const userId = req.userId!;
     
-    // Check task exists and belongs to user
     const existingTask = await prisma.task.findFirst({
       where: { id, userId }
     });
@@ -354,10 +278,7 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response, next: Nex
       throw createError('Task not found', 404);
     }
     
-    await prisma.task.delete({
-      where: { id }
-    });
-    
+    await prisma.task.delete({ where: { id } });
     res.json({ message: 'Task deleted successfully' });
   } catch (error) {
     next(error);
