@@ -10,6 +10,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 // Постави това някъде след инициализацията на Prisma клиента
+// Постави това след инициализацията на prisma (const prisma = new PrismaClient())
 async function seedTags() {
   const defaultTags = [
     { id: '1', name: 'Frontend', color: '#3B82F6' },
@@ -22,15 +23,19 @@ async function seedTags() {
     { id: '8', name: 'DevOps', color: '#06B6D4' },
   ];
 
+  console.log('🌱 Seeding tags...');
   for (const tag of defaultTags) {
-    await prisma.tag.upsert({
+    await (prisma as any).tag.upsert({
       where: { id: tag.id },
       update: {},
       create: tag,
     });
   }
-  console.log('✅ Default tags seeded!');
+  console.log('✅ Tags seeded successfully');
 }
+
+// Извикай я веднага
+seedTags().catch(err => console.error('Tag seeding failed:', err));
 // Извикай функцията при стартиране
 seedTags().catch(console.error);
 // Middleware
