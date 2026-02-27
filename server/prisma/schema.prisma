@@ -36,11 +36,15 @@ model Task {
   updatedAt     DateTime      @updatedAt
   
   userId        String
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  tags          TaskTag[]
-  
-  @@map("tasks")
+  user        User     @relation(fields: [userId], references: [id])
+  tags        Tag[]    // <--- Важно: Директна връзка към Tag
+}
+
+model Tag {
+  id    String @id
+  name  String
+  color String
+  tasks Task[]
 }
 
 model Tag {
