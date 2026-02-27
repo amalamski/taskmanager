@@ -32,19 +32,25 @@ router.get('/', async (req: AuthenticatedRequest, res: Response, next: NextFunct
       ];
     }
     
-    const tasks = await prisma.task.findMany({
-      where,
-      include: {
+    const task = await prisma.task.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        status: data.status,
+        priority: data.priority,
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        color: data.color,
+        userId: userId,
         tags: {
-          include: {
-            tag: true
-          }
+          create: (data.tagIds || []).map((id: string) => ({
+            tag: { connect: { id } }
+          }))
         }
       },
-      orderBy: [
-        { priority: 'desc' },
-        { createdAt: 'desc' }
-      ]
+      include: {
+        tags: { include: { tag: true } }
+      }
     });
     
     const formattedTasks = tasks.map(task => ({
