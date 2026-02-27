@@ -8,54 +8,48 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  passwordHash  String
-  name          String?
-  avatar        String?
-  color         String    @default("#8B5CF6")
-  role          Role      @default(USER)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  tasks         Task[]
-  
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  avatar       String?
+  color        String   @default("#8B5CF6")
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tasks        Task[]
+
   @@map("users")
 }
 
 model Task {
-  id            String        @id @default(uuid())
-  title         String
-  description   String?
-  status        TaskStatus    @default(TODO)
-  priority      TaskPriority  @default(MEDIUM)
-  startDate     DateTime
-  endDate       DateTime
-  color         String        @default("#8B5CF6")
-  completedAt   DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  
-  userId        String
-  user        User     @relation(fields: [userId], references: [id])
-  tags        Tag[]    // <--- Важно: Директна връзка към Tag
+  id    String @id @default(uuid())
+  title String
+  // ... другите ти полета тук (description, status и т.н.)
+
+  // ДОБАВИ ТОЗИ РЕД:
+  tags   TaskTag[] // <--- Това свързва Task с междинната таблица
+  user   User?     @relation(fields: [userId], references: [id])
+  userId String?
 }
 
 model Tag {
   id    String @id
   name  String
   color String
-  tasks Task[]
+
+  // ДОБАВИ ТОЗИ РЕД:
+  tasks TaskTag[] // <--- Това свързва Tag с междинната таблица
 }
 
-
 model TaskTag {
-  taskId  String
-  tagId   String
-  task    Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  
-  @@id([taskId, tagId])
-  @@map("task_tags")
+  id     String @id @default(uuid())
+  taskId String
+  tagId  String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, tagId]) // Добра практика е да няма дублиращи се тагове на една задача
 }
 
 enum Role {
