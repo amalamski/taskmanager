@@ -123,18 +123,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunc
   try {
     const data = validate(taskSchema, req.body);
     const userId = req.userId!;
-    
-    // Проверка дали таговете съществуват в базата
-    if (data.tagIds && data.tagIds.length > 0) {
-      const existingTags = await prisma.tag.findMany({
-        where: { id: { in: data.tagIds } }
-      });
-      
-      if (existingTags.length !== data.tagIds.length) {
-        return res.status(400).json({ error: 'One or more tags not found in database' });
-      }
-    }
-    
+
     const task = await prisma.task.create({
       data: {
         title: data.title,
@@ -144,40 +133,40 @@ router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunc
         startDate: new Date(data.startDate),
         endDate: new Date(data.endDate),
         color: data.color,
-        userId,
-        // ОПРОСТЕН СИНТАКСИС ЗА ВРЪЗКА
+        userId: userId,
+        // НОВИЯТ СИНТАКСИС ЗА ТАЗИ СХЕМА:
         tags: {
-          connect: (data.tagIds ?? []).map((tagId: string) => ({ id: tagId }))
+          create: (data.tagIds || []).map((id: string) => ({
+            tag: { connect: { id } }
+          }))
         }
       },
       include: {
-        tags: true // Вземи таговете директно
+        tags: {
+          include: {
+            tag: true
+          }
+        }
       }
     });
-    
-    // Ако статусът е DONE, записваме кога е завършена
-    if (data.status === 'DONE') {
-      await prisma.task.update({
-        where: { id: task.id },
-        data: { completedAt: new Date() }
-      });
-    }
-    
-    // Връщаме изчистен обект към фронтенда
-    res.status(201).json({
-      message: 'Task created successfully',
-      task: {
-        ...task,
-        status: task.status.toLowerCase().replace('_', '-'),
-        priority: task.priority.toLowerCase(),
-        startDate: task.startDate.toISOString(),
-        endDate: task.endDate.toISOString(),
-        tags: task.tags // Prisma вече ги е заредила
-      }
+
+    // Преобразуваме обекта, за да съвпада с това, което фронтендът очаква
+    const formattedTask = {
+      ...task,
+      status: task.status.toLowerCase().replace('_', '-'),
+      priority: task.priority.toLowerCase(),
+      startDate: task.startDate.toISOString(),
+      endDate: task.endDate.toISOString(),
+      tags: task.tags.map(t => t.tag) // Изваждаме таговете от междинната таблица
+    };
+
+    res.status(201).json({ 
+      message: 'Task created successfully', 
+      task: formattedTask 
     });
-  } catch (error) {
-    console.error('Error creating task:', error);
-    next(error);
+  } catch (error: any) {
+    console.error("BACKEND ERROR:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
