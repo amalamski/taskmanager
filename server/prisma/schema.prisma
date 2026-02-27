@@ -47,14 +47,6 @@ model Tag {
   tasks Task[]
 }
 
-model Tag {
-  id      String    @id @default(uuid())
-  name    String    @unique
-  color   String
-  tasks   TaskTag[]
-  
-  @@map("tags")
-}
 
 model TaskTag {
   taskId  String
