@@ -26,7 +26,8 @@ model Task {
   id    String @id @default(uuid())
   title String
   // ... другите ти полета тук (description, status и т.н.)
-
+description String?
+status      String    @default("TODO")
   // ДОБАВИ ТОЗИ РЕД:
   tags   TaskTag[] // <--- Това свързва Task с междинната таблица
   user   User?     @relation(fields: [userId], references: [id])
