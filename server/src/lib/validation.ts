@@ -25,7 +25,7 @@ export const taskSchema = z.object({
     message: 'Invalid date format'
   })),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').default('#8B5CF6'),
-  tagIds: z.array(z.string().uuid()).default([]),
+  tagIds: z.array(z.string()).optional(),
 });
 
 export const taskUpdateSchema = taskSchema.partial();
