@@ -1,15 +1,14 @@
-import { Router, Request, Response, NextFunction } from 'express';
-import { prisma } from '../lib/prisma.js';
+import { Router, Response, NextFunction } from 'express';
+import { prisma } from '../index.js'; // Променено, за да ползва инстанцията от index.ts
 import { taskSchema, taskUpdateSchema, validate } from '../lib/validation.js';
 import { createError } from '../middleware/errorHandler.js';
 import { AuthenticatedRequest, authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
-// All task routes require authentication
 router.use(authenticate);
 
-// Get all tasks for the authenticated user
+// Get all tasks
 router.get('/', async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId!;
@@ -17,14 +16,8 @@ router.get('/', async (req: AuthenticatedRequest, res: Response, next: NextFunct
     
     const where: any = { userId };
     
-    if (status) {
-      where.status = status;
-    }
-    
-    if (priority) {
-      where.priority = priority;
-    }
-    
+    if (status) where.status = status as string;
+    if (priority) where.priority = priority as string;
     if (search) {
       where.OR = [
         { title: { contains: search as string, mode: 'insensitive' } },
@@ -32,25 +25,12 @@ router.get('/', async (req: AuthenticatedRequest, res: Response, next: NextFunct
       ];
     }
     
-    const task = await prisma.task.create({
-      data: {
-        title: data.title,
-        description: data.description,
-        status: data.status,
-        priority: data.priority,
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
-        color: data.color,
-        userId: userId,
-        tags: {
-          create: (data.tagIds || []).map((id: string) => ({
-            tag: { connect: { id } }
-          }))
-        }
-      },
+    const tasks = await prisma.task.findMany({
+      where,
       include: {
         tags: { include: { tag: true } }
-      }
+      },
+      orderBy: { createdAt: 'desc' }
     });
     
     const formattedTasks = tasks.map(task => ({
@@ -86,37 +66,19 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response, next: NextFu
     
     const task = await prisma.task.findFirst({
       where: { id, userId },
-      include: {
-        tags: {
-          include: {
-            tag: true
-          }
-        }
-      }
+      include: { tags: { include: { tag: true } } }
     });
     
-    if (!task) {
-      throw createError('Task not found', 404);
-    }
+    if (!task) throw createError('Task not found', 404);
     
     res.json({
       task: {
-        id: task.id,
-        title: task.title,
-        description: task.description,
+        ...task,
         status: task.status.toLowerCase().replace('_', '-'),
         priority: task.priority.toLowerCase(),
         startDate: task.startDate.toISOString(),
         endDate: task.endDate.toISOString(),
-        color: task.color,
-        completedAt: task.completedAt?.toISOString() || null,
-        createdAt: task.createdAt.toISOString(),
-        updatedAt: task.updatedAt.toISOString(),
-        tags: task.tags.map(tt => ({
-          id: tt.tag.id,
-          name: tt.tag.name,
-          color: tt.tag.color,
-        })),
+        tags: task.tags.map(tt => tt.tag)
       }
     });
   } catch (error) {
@@ -140,39 +102,28 @@ router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunc
         endDate: new Date(data.endDate),
         color: data.color,
         userId: userId,
-        // НОВИЯТ СИНТАКСИС ЗА ТАЗИ СХЕМА:
         tags: {
           create: (data.tagIds || []).map((id: string) => ({
             tag: { connect: { id } }
           }))
         }
       },
-      include: {
-        tags: {
-          include: {
-            tag: true
-          }
-        }
-      }
+      include: { tags: { include: { tag: true } } }
     });
-
-    // Преобразуваме обекта, за да съвпада с това, което фронтендът очаква
-    const formattedTask = {
-      ...task,
-      status: task.status.toLowerCase().replace('_', '-'),
-      priority: task.priority.toLowerCase(),
-      startDate: task.startDate.toISOString(),
-      endDate: task.endDate.toISOString(),
-      tags: task.tags.map(t => t.tag) // Изваждаме таговете от междинната таблица
-    };
 
     res.status(201).json({ 
       message: 'Task created successfully', 
-      task: formattedTask 
+      task: {
+        ...task,
+        status: task.status.toLowerCase().replace('_', '-'),
+        priority: task.priority.toLowerCase(),
+        startDate: task.startDate.toISOString(),
+        endDate: task.endDate.toISOString(),
+        tags: task.tags.map(t => t.tag)
+      } 
     });
   } catch (error: any) {
-    console.error("BACKEND ERROR:", error);
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 });
 
@@ -183,13 +134,8 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response, next: Next
     const data = validate(taskUpdateSchema, req.body);
     const userId = req.userId!;
     
-    const existingTask = await prisma.task.findFirst({
-      where: { id, userId }
-    });
-    
-    if (!existingTask) {
-      throw createError('Task not found', 404);
-    }
+    const existingTask = await prisma.task.findFirst({ where: { id, userId } });
+    if (!existingTask) throw createError('Task not found', 404);
     
     const updateData: any = {};
     if (data.title !== undefined) updateData.title = data.title;
@@ -218,30 +164,15 @@ router.patch('/:id', async (req: AuthenticatedRequest, res: Response, next: Next
     const task = await prisma.task.update({
       where: { id },
       data: updateData,
-      include: {
-        tags: { include: { tag: true } }
-      }
+      include: { tags: { include: { tag: true } } }
     });
     
     res.json({
-      message: 'Task updated successfully',
       task: {
-        id: task.id,
-        title: task.title,
-        description: task.description,
+        ...task,
         status: task.status.toLowerCase().replace('_', '-'),
         priority: task.priority.toLowerCase(),
-        startDate: task.startDate.toISOString(),
-        endDate: task.endDate.toISOString(),
-        color: task.color,
-        completedAt: task.completedAt?.toISOString() || null,
-        createdAt: task.createdAt.toISOString(),
-        updatedAt: task.updatedAt.toISOString(),
-        tags: task.tags.map(tt => ({
-          id: tt.tag.id,
-          name: tt.tag.name,
-          color: tt.tag.color,
-        })),
+        tags: task.tags.map(tt => tt.tag)
       }
     });
   } catch (error) {
@@ -254,14 +185,8 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response, next: Nex
   try {
     const { id } = req.params;
     const userId = req.userId!;
-    
-    const existingTask = await prisma.task.findFirst({
-      where: { id, userId }
-    });
-    
-    if (!existingTask) {
-      throw createError('Task not found', 404);
-    }
+    const existingTask = await prisma.task.findFirst({ where: { id, userId } });
+    if (!existingTask) throw createError('Task not found', 404);
     
     await prisma.task.delete({ where: { id } });
     res.json({ message: 'Task deleted successfully' });

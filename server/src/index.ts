@@ -11,9 +11,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-const prisma = new PrismaClient(); // И това
-// Постави това някъде след инициализацията на Prisma клиента
-// Постави това след инициализацията на prisma (const prisma = new PrismaClient())
+// Инициализираме Prisma само ВЕДНЪЖ и го експортираме веднага
+export const prisma = new PrismaClient();
+
 async function seedTags() {
   const defaultTags = [
     { id: '1', name: 'Frontend', color: '#3B82F6' },
@@ -27,20 +27,23 @@ async function seedTags() {
   ];
 
   console.log('🌱 Seeding tags...');
-  for (const tag of defaultTags) {
-    await (prisma as any).tag.upsert({
-      where: { id: tag.id },
-      update: {},
-      create: tag,
-    });
+  try {
+    for (const tag of defaultTags) {
+      await (prisma as any).tag.upsert({
+        where: { id: tag.id },
+        update: { name: tag.name, color: tag.color },
+        create: tag,
+      });
+    }
+    console.log('✅ Tags seeded successfully');
+  } catch (err) {
+    console.error('❌ Tag seeding failed:', err);
   }
-  console.log('✅ Tags seeded successfully');
 }
 
-// Извикай я веднага
-seedTags().catch(err => console.error('Tag seeding failed:', err));
-// Извикай функцията при стартиране
-seedTags().catch(console.error);
+// Викаме сийдването само веднъж
+seedTags();
+
 // Middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'https://taskmanager-flame-gamma.vercel.app',
@@ -67,8 +70,6 @@ app.use((_req: Request, res: Response) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 export default app;
-export const prisma = new PrismaClient();
