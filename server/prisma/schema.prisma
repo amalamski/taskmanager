@@ -40,12 +40,10 @@ model Task {
 }
 
 model Tag {
-  id    String @id
-  name  String
+  id    String    @id @default(uuid())
+  name  String    @unique
   color String
-
-  // ДОБАВИ ТОЗИ РЕД:
-  tasks TaskTag[] // <--- Това свързва Tag с междинната таблица
+  tasks TaskTag[]
 }
 
 model TaskTag {
@@ -55,7 +53,7 @@ model TaskTag {
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
   tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-  @@unique([taskId, tagId]) // Добра практика е да няма дублиращи се тагове на една задача
+  @@unique([taskId, tagId])
 }
 
 enum Role {
