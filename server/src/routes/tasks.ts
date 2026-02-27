@@ -124,13 +124,14 @@ router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunc
     const data = validate(taskSchema, req.body);
     const userId = req.userId!;
     
+    // Проверка дали таговете съществуват в базата
     if (data.tagIds && data.tagIds.length > 0) {
       const existingTags = await prisma.tag.findMany({
         where: { id: { in: data.tagIds } }
       });
       
       if (existingTags.length !== data.tagIds.length) {
-        throw createError('One or more tags not found', 400);
+        return res.status(400).json({ error: 'One or more tags not found in database' });
       }
     }
     
@@ -144,21 +145,17 @@ router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunc
         endDate: new Date(data.endDate),
         color: data.color,
         userId,
+        // ОПРОСТЕН СИНТАКСИС ЗА ВРЪЗКА
         tags: {
-          create: (data.tagIds ?? []).map((tagId: string) => ({
-            tag: { connect: { id: tagId } }
-          }))
+          connect: (data.tagIds ?? []).map((tagId: string) => ({ id: tagId }))
         }
       },
       include: {
-        tags: {
-          include: {
-            tag: true
-          }
-        }
+        tags: true // Вземи таговете директно
       }
     });
     
+    // Ако статусът е DONE, записваме кога е завършена
     if (data.status === 'DONE') {
       await prisma.task.update({
         where: { id: task.id },
@@ -166,27 +163,20 @@ router.post('/', async (req: AuthenticatedRequest, res: Response, next: NextFunc
       });
     }
     
+    // Връщаме изчистен обект към фронтенда
     res.status(201).json({
       message: 'Task created successfully',
       task: {
-        id: task.id,
-        title: task.title,
-        description: task.description,
+        ...task,
         status: task.status.toLowerCase().replace('_', '-'),
         priority: task.priority.toLowerCase(),
         startDate: task.startDate.toISOString(),
         endDate: task.endDate.toISOString(),
-        color: task.color,
-        completedAt: task.completedAt?.toISOString() || null,
-        createdAt: task.createdAt.toISOString(),
-        tags: task.tags.map(tt => ({
-          id: tt.tag.id,
-          name: tt.tag.name,
-          color: tt.tag.color,
-        })),
+        tags: task.tags // Prisma вече ги е заредила
       }
     });
   } catch (error) {
+    console.error('Error creating task:', error);
     next(error);
   }
 });
