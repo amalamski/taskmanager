@@ -10,7 +10,6 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-import { PrismaClient } from '@prisma/client'; // Добави това
 
 const prisma = new PrismaClient(); // И това
 // Постави това някъде след инициализацията на Prisma клиента
@@ -72,3 +71,4 @@ app.listen(PORT, () => {
 });
 
 export default app;
+export const prisma = new PrismaClient();
